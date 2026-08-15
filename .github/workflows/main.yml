@@ -1,0 +1,85 @@
+name: Build Arabic Letters Game APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify game file
+        run: |
+          set -e
+
+          echo "Checking repository..."
+
+          if [ ! -f "index.html" ]; then
+            echo "ERROR: index.html was not found in repository root."
+            echo "Repository files:"
+            find . -maxdepth 2 -type f -print
+            exit 1
+          fi
+
+          echo "Game file found:"
+          ls -lh index.html
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Cordova
+        run: |
+          npm install -g cordova
+
+      - name: Create Android project
+        run: |
+          cordova create arabic-letters-app \
+            com.yarubacademy.arabicletters \
+            "تعلم الحروف العربية"
+
+      - name: Copy game
+        run: |
+          set -e
+
+          rm -rf arabic-letters-app/www/*
+
+          cp index.html arabic-letters-app/www/index.html
+
+          echo "Game copied successfully."
+
+          ls -lh arabic-letters-app/www/index.html
+
+      - name: Add Android platform
+        working-directory: arabic-letters-app
+        run: |
+          cordova platform add android
+
+      - name: Build APK
+        working-directory: arabic-letters-app
+        run: |
+          cordova build android --debug
+
+      - name: Locate APK
+        run: |
+          echo "Searching for APK..."
+
+          find arabic-letters-app \
+            -type f \
+            -name "*.apk" \
+            -print
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: arabic-letters-game-apk
+          path: arabic-letters-app/platforms/android/app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
